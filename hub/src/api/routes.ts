@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { Router, HttpError, type Ctx } from './http';
 import type { Hub } from '../hub';
 import { AuthError, LockedOutError, ValidationError } from '../auth/authService';
+import { checkSignedRequest } from '../auth/signing';
 import { defaultFlags } from '../policy/defaults';
 import { isValidWindow } from '../policy/schedule';
 import { assertValidTimezone } from '../util/localtime';
@@ -31,9 +32,34 @@ function requireDevice(ctx: Ctx, hub: Hub): Device {
 function requireAgent(ctx: Ctx, hub: Hub): { device: Device; consoleId: string; console: Console } {
   const device = requireDevice(ctx, hub);
   if (device.kind !== 'agent' || !device.consoleId) throw new HttpError(403, 'agent device required');
+  enforceSigning(ctx, hub, device);
   const console = hub.store.getConsole(device.consoleId);
   if (!console) throw new HttpError(404, 'console not found');
   return { device, consoleId: device.consoleId, console };
+}
+
+/**
+ * Verify the HMAC signature on an agent request (R-04). Signed requests are
+ * always verified; when `enforceAgentSigning` is on, unsigned agent requests are
+ * rejected too. Bearer-token auth still applies on top.
+ */
+function enforceSigning(ctx: Ctx, hub: Hub, device: Device): void {
+  const sig = ctx.header('x-cg-sig');
+  const signed = sig !== undefined;
+  if (!signed && !hub.config.enforceAgentSigning) return; // unsigned allowed
+  const check = checkSignedRequest({
+    signingKey: device.signingKey,
+    method: ctx.method,
+    path: ctx.path,
+    rawBody: ctx.rawBody,
+    nonce: ctx.header('x-cg-nonce'),
+    ts: ctx.header('x-cg-ts'),
+    sig,
+    now: hub.time.now(),
+    skewMs: hub.config.signingSkewMs,
+    replay: hub.replay,
+  });
+  if (!check.ok) throw new HttpError(401, 'signature: ' + (check.reason ?? 'invalid'));
 }
 
 function requirePin(ctx: Ctx, hub: Hub): void {
@@ -117,6 +143,55 @@ export function registerRoutes(router: Router, hub: Hub): void {
     ctx.json(200, hub.events.verify());
   });
 
+  // Devices: list + revoke (token revocation from the Web UI / app).
+  router.get(`${API}/devices`, (ctx) => {
+    requireDevice(ctx, hub);
+    const devices = hub.auth.listDevices().map((d) => ({
+      id: d.id,
+      kind: d.kind,
+      name: d.name,
+      consoleId: d.consoleId,
+      lastSeen: d.lastSeen,
+      pairedAt: d.pairedAt,
+      revoked: d.revoked === true,
+      // never expose tokenHash / signingKey
+    }));
+    ctx.json(200, { devices });
+  });
+
+  router.post(`${API}/devices/:id/revoke`, async (ctx) => {
+    requirePin(ctx, hub);
+    const id = ctx.params.id!;
+    if (!hub.store.getDevice(id)) throw new HttpError(404, 'device not found');
+    await hub.auth.revoke(id);
+    ctx.json(200, { ok: true });
+  });
+
+  // Backups + standby replication.
+  router.post(`${API}/system/backup`, (ctx) => {
+    requirePin(ctx, hub);
+    ctx.json(200, hub.backup.backupNow());
+  });
+
+  router.get(`${API}/system/backups`, (ctx) => {
+    requirePin(ctx, hub);
+    ctx.json(200, { backups: hub.backup.listBackups() });
+  });
+
+  // A standby Hub pulls this snapshot to mirror policy/state (read replica).
+  router.get(`${API}/system/snapshot`, (ctx) => {
+    requirePin(ctx, hub);
+    ctx.json(200, hub.backup.snapshot());
+  });
+
+  // Import a snapshot from a primary (standby mode). PIN-gated.
+  router.post(`${API}/system/replicate`, async (ctx) => {
+    requirePin(ctx, hub);
+    const b = body(ctx, z.object({ state: z.unknown() }));
+    await hub.store.importState(b.state);
+    ctx.json(200, { ok: true });
+  });
+
   // Setup / PIN --------------------------------------------------------------
   router.get(`${API}/setup`, (ctx) => {
     ctx.json(200, { pinSet: hub.auth.isPinSet(), hubId: hub.store.getHubId() });
@@ -176,7 +251,12 @@ export function registerRoutes(router: Router, hub: Hub): void {
       consoleKind: b.consoleKind,
       consoleName: b.consoleName,
     });
-    ctx.json(200, { deviceId: result.device.id, deviceToken: result.token, console: result.console ?? null });
+    ctx.json(200, {
+      deviceId: result.device.id,
+      deviceToken: result.token,
+      signingKey: result.signingKey,
+      console: result.console ?? null,
+    });
   });
 
   // Agent --------------------------------------------------------------------
@@ -211,9 +291,20 @@ export function registerRoutes(router: Router, hub: Hub): void {
       agentVersion: b.agentVersion ?? console.agentVersion,
     });
     await hub.store.upsertDevice({ ...device, lastSeen: now });
+    hub.watchdog.noteHeartbeat(consoleId);
 
     const computed = await hub.enforcement.computeState(consoleId, signal);
     hub.enforcement.recordTransition(consoleId, computed.effective, now);
+
+    // Tamper evidence: a title is running while the console should be locked.
+    if (computed.effective.state === 'LOCKED' && b.currentTitleId) {
+      hub.events.emit({
+        type: 'CONSOLE_POWERED_DURING_LOCK',
+        consoleId,
+        data: { titleId: b.currentTitleId, reason: computed.effective.reason },
+        ts: now,
+      });
+    }
 
     const commands = hub.store.listCommands(consoleId);
     ctx.json(200, {
@@ -224,11 +315,19 @@ export function registerRoutes(router: Router, hub: Hub): void {
   });
 
   router.post(`${API}/agent/heartbeat`, async (ctx) => {
-    const { device, console } = requireAgent(ctx, hub);
+    const { device, console, consoleId } = requireAgent(ctx, hub);
     const now = hub.time.now();
     await hub.store.upsertConsole({ ...console, lastSeen: now });
     await hub.store.upsertDevice({ ...device, lastSeen: now });
+    hub.watchdog.noteHeartbeat(consoleId);
     ctx.json(200, { ok: true, serverTime: hub.time.now() });
+  });
+
+  // Graceful power-off — suppresses the AGENT_OFFLINE alarm for the next gap.
+  router.post(`${API}/agent/shutdown`, (ctx) => {
+    const { consoleId } = requireAgent(ctx, hub);
+    hub.watchdog.noteShutdown(consoleId);
+    ctx.json(200, { ok: true });
   });
 
   router.post(`${API}/agent/session/start`, async (ctx) => {

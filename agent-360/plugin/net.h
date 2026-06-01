@@ -11,6 +11,9 @@
 /* Bring up XNet. Returns 0 on success. */
 int cg360_net_init(void);
 
+/* Set the HMAC signing key (hex) used to sign requests (R-04); NULL clears it. */
+void cg360_set_signing_key(const char *key_hex);
+
 /* Discover the Hub via UDP broadcast (CG_DISCOVER?v1). Writes the Hub IP into
  * host_out and returns the TCP port, or 0 on failure. */
 int cg360_discover_hub(int discovery_port, char *host_out, int host_out_len);

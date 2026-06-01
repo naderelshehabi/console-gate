@@ -66,6 +66,7 @@ test('device lookup by token hash', async () => {
       name: 'phone',
       consoleId: null,
       tokenHash: 'abc',
+      signingKey: null,
       pushToken: null,
       pairedAt: 1,
       lastSeen: null,

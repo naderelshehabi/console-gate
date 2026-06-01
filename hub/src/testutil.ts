@@ -26,7 +26,7 @@ export interface TestHarness {
   request(
     method: string,
     path: string,
-    opts?: { body?: unknown; token?: string; pin?: string; pinSession?: string },
+    opts?: { body?: unknown; token?: string; pin?: string; pinSession?: string; headers?: Record<string, string> },
   ): Promise<TestClientResponse>;
   close(): Promise<void>;
 }
@@ -62,13 +62,14 @@ export async function makeHarness(opts: HarnessOptions = {}): Promise<TestHarnes
   async function request(
     method: string,
     path: string,
-    o: { body?: unknown; token?: string; pin?: string; pinSession?: string } = {},
+    o: { body?: unknown; token?: string; pin?: string; pinSession?: string; headers?: Record<string, string> } = {},
   ): Promise<TestClientResponse> {
     const headers: Record<string, string> = {};
     if (o.body !== undefined) headers['content-type'] = 'application/json';
     if (o.token) headers['authorization'] = `Bearer ${o.token}`;
     if (o.pin) headers['x-parent-pin'] = o.pin;
     if (o.pinSession) headers['x-pin-session'] = o.pinSession;
+    if (o.headers) Object.assign(headers, o.headers);
     const res = await fetch(baseUrl + path, {
       method,
       headers,
@@ -106,12 +107,12 @@ export async function pairAgent(
   h: TestHarness,
   pin = '4242',
   kind: 'xbox360' | 'wii' = 'xbox360',
-): Promise<{ token: string; consoleId: string }> {
+): Promise<{ token: string; consoleId: string; signingKey: string }> {
   await h.request('POST', '/api/v1/setup/pin', { body: { pin } });
   const start = await h.request('POST', '/api/v1/pair/start', { body: {}, pin });
   const code = start.json.code as string;
   const claim = await h.request('POST', '/api/v1/pair/claim', {
     body: { code, deviceKind: 'agent', deviceName: 'test-agent', consoleKind: kind, consoleName: 'Test Console' },
   });
-  return { token: claim.json.deviceToken, consoleId: claim.json.console.id };
+  return { token: claim.json.deviceToken, consoleId: claim.json.console.id, signingKey: claim.json.signingKey };
 }

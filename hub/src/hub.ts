@@ -11,6 +11,9 @@ import { StreamBus } from './events/bus';
 import { EnforcementService } from './policy/enforcement';
 import { ControlService } from './policy/control';
 import { AuthService } from './auth/authService';
+import { ReplayCache } from './auth/signing';
+import { WatchdogService } from './watchdog/watchdog';
+import { BackupService } from './backup/backup';
 
 export interface HubDeps {
   config: HubConfig;
@@ -34,6 +37,9 @@ export class Hub {
   readonly enforcement: EnforcementService;
   readonly control: ControlService;
   readonly auth: AuthService;
+  readonly replay: ReplayCache;
+  readonly watchdog: WatchdogService;
+  readonly backup: BackupService;
 
   constructor(deps: HubDeps) {
     this.config = deps.config;
@@ -52,14 +58,27 @@ export class Hub {
     this.enforcement = new EnforcementService(this.store, this.time, this.quota, this.events, this.config, this.bus);
     this.control = new ControlService(this.store, this.time, this.events, this.enforcement);
     this.auth = new AuthService(this.store, () => this.time.now());
+    this.replay = new ReplayCache();
+    this.watchdog = new WatchdogService(
+      this.store,
+      this.time,
+      this.events,
+      deps.config.agentOfflineMs,
+      deps.config.watchdogIntervalMs,
+    );
+    this.backup = new BackupService(deps.config.dataDir, this.store, this.events, this.time);
   }
 
-  /** Start background tasks (time sync). */
+  /** Start background tasks (time sync + watchdog + scheduled backups). */
   start(): void {
     this.time.start();
+    this.watchdog.start();
+    this.backup.start(this.config.backupIntervalMs);
   }
 
   stop(): void {
     this.time.stop();
+    this.watchdog.stop();
+    this.backup.stop();
   }
 }

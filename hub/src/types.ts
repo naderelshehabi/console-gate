@@ -90,9 +90,11 @@ export interface Device {
   name: string;
   consoleId: string | null;   // set for agent devices
   tokenHash: string;          // sha256 of the issued device token
+  signingKey: string | null;  // hex HMAC key for request signing (agents; LAN integrity, R-04)
   pushToken: string | null;
   pairedAt: number;
   lastSeen: number | null;
+  revoked?: boolean;          // revoked devices are rejected at auth
 }
 
 export type TimeSource = 'ntp' | 'host' | 'degraded';

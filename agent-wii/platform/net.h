@@ -10,6 +10,9 @@
 /* Bring up the Wii network stack (DHCP). Returns 0 on success. */
 int cgnet_init(void);
 
+/* Set the HMAC signing key (hex) used to sign requests (R-04); NULL clears it. */
+void cgnet_set_signing_key(const char *key_hex);
+
 /* Discover the Hub via UDP broadcast (CG_DISCOVER?v1). On success writes the
  * Hub IP (dotted) into host_out and returns the TCP port; returns 0 on failure. */
 int cgnet_discover_hub(int discovery_port, char *host_out, int host_out_len);

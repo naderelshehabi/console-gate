@@ -18,6 +18,7 @@ export interface Ctx {
   params: Record<string, string>;
   query: URLSearchParams;
   body: unknown;
+  rawBody: string; // exact request body text (for signature verification)
   header(name: string): string | undefined;
   json(status: number, obj: unknown): void;
 }
@@ -73,7 +74,12 @@ export class Router {
 
 const MAX_BODY = 1024 * 1024; // 1 MiB
 
-export function readBody(req: IncomingMessage): Promise<unknown> {
+export interface ParsedBody {
+  raw: string;
+  value: unknown;
+}
+
+export function readBody(req: IncomingMessage): Promise<ParsedBody> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
@@ -87,18 +93,17 @@ export function readBody(req: IncomingMessage): Promise<unknown> {
       chunks.push(c);
     });
     req.on('end', () => {
-      if (chunks.length === 0) return resolve(undefined);
-      const text = Buffer.concat(chunks).toString('utf8');
-      if (!text.trim()) return resolve(undefined);
+      const raw = chunks.length ? Buffer.concat(chunks).toString('utf8') : '';
+      if (!raw.trim()) return resolve({ raw, value: undefined });
       const ct = req.headers['content-type'] ?? '';
       if (ct.includes('application/json')) {
         try {
-          resolve(JSON.parse(text));
+          resolve({ raw, value: JSON.parse(raw) });
         } catch {
           reject(new HttpError(400, 'invalid JSON body'));
         }
       } else {
-        resolve(text);
+        resolve({ raw, value: raw });
       }
     });
     req.on('error', reject);

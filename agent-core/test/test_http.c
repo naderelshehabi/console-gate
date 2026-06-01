@@ -7,7 +7,7 @@ void run_http_tests(void) {
 
   /* Full request with auth + body. */
   int n = cg_http_build_request(buf, sizeof(buf), "POST", "/api/v1/agent/poll",
-                                "192.168.1.10:8088", "tok123", NULL, "{\"minutesUsedDelta\":5}");
+                                "192.168.1.10:8088", "tok123", NULL, NULL, "{\"minutesUsedDelta\":5}");
   CHECK(n > 0);
   CHECK(strstr(buf, "POST /api/v1/agent/poll HTTP/1.1\r\n") == buf);
   CHECK(strstr(buf, "Host: 192.168.1.10:8088\r\n") != NULL);
@@ -18,14 +18,21 @@ void run_http_tests(void) {
   CHECK(strstr(buf, "X-Pin-Session") == NULL);
 
   /* With a PIN session header and no body. */
-  n = cg_http_build_request(buf, sizeof(buf), "POST", "/x", "h", "t", "pinsess", NULL);
+  n = cg_http_build_request(buf, sizeof(buf), "POST", "/x", "h", "t", "pinsess", NULL, NULL);
   CHECK(n > 0);
   CHECK(strstr(buf, "X-Pin-Session: pinsess\r\n") != NULL);
   CHECK(strstr(buf, "Content-Length: 0\r\n") != NULL);
 
+  /* With signing (extra) headers injected. */
+  n = cg_http_build_request(buf, sizeof(buf), "POST", "/x", "h", "tok", NULL,
+                            "X-CG-Nonce: n1\r\nX-CG-Sig: abcd\r\n", "{}");
+  CHECK(n > 0);
+  CHECK(strstr(buf, "X-CG-Nonce: n1\r\n") != NULL);
+  CHECK(strstr(buf, "X-CG-Sig: abcd\r\n") != NULL);
+
   /* Overflow guard. */
   char tiny[16];
-  CHECK_INT(cg_http_build_request(tiny, sizeof(tiny), "POST", "/api/v1/agent/poll", "host", NULL, NULL, "{}"), -1);
+  CHECK_INT(cg_http_build_request(tiny, sizeof(tiny), "POST", "/api/v1/agent/poll", "host", NULL, NULL, NULL, "{}"), -1);
 
   /* Status parsing. */
   CHECK_INT(cg_http_status("HTTP/1.1 200 OK\r\n\r\n{}"), 200);

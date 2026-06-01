@@ -264,27 +264,30 @@ Goal: zero-IP discovery, full control parity, reliable push. Build on GATE 0c.
 
 Goal: walk the threat model on hardware; make bypass visible; remove escape hatches.
 
+> **Mostly Hub-side software — built + tested here.** Transport signing, replay protection, token revocation, the watchdog, and backups/standby are fully implemented and tested (Hub 99 tests; agent-core 142 C checks incl. cross-language HMAC pin). The console **boot-chain** hardening (6.1) is configuration on real hardware (documented in the agent READMEs + `launch.ini.example` + parent guide).
+
 ### 6.1 Boot-chain hardening
-- [ ] 360: strip button-launch slots; neutralize `RBump` return-to-MS-dash; PIN-gate/remove FTP & file managers; confirm NAND bake.
-- [ ] Wii: NAND-channel deploy; Priiloader autoboot + password set; loader Return-To = gate; menu-access events wired.
+- [~] 360: strip button-launch slots; neutralize `RBump`; PIN-gate/remove FTP; NAND bake — documented in [`agent-360/plugin/launch.ini.example`](../../agent-360/plugin/launch.ini.example) + [README](../../agent-360/README.md); applying it needs the console.
+- [~] Wii: NAND-channel deploy; Priiloader autoboot + password; loader Return-To = gate — documented in [`agent-wii/README.md`](../../agent-wii/README.md). **Menu-access events wired:** `PRIILOADER_ACCESS`/`SETTINGS_ACCESS` event types exist and the agent posts them via `/agent/events`.
 
 ### 6.2 Transport & secrets
-- [ ] Decide & implement transport (HTTPS+cert-pinning, or HMAC-signed plaintext per R-04) on each agent.
-- [ ] Nonce/ts replay protection verified; token revocation from Web UI; PIN rate-limit/lockout on Hub and agents.
+- [x] **HMAC-signed LAN transport (R-04)** implemented on each agent: SHA-256 + HMAC-SHA256 in C (`agent-core/cg_hmac.c`, RFC-4231-vector-tested) + `cg_sign` (`cg_sign.c`) producing the canonical signature, wired into both net layers (`cgnet_set_signing_key`/`cg360_set_signing_key`, auto-signing in the request path). **Cross-language pinned**: C `cg_sign` == Hub Node `sign()` (byte-identical, `test_hmac.c`).
+- [x] Hub verifies signatures (`auth/signing.ts`: canonical/HMAC/`timingSafeEqual`) with **nonce replay cache + ts-skew window**; signing keys issued at pairing; `enforceAgentSigning` config to require signing. Tested (`signing.test.ts`, `signing.api.test.ts`: accept / tamper / replay / stale-ts / enforce-unsigned-reject).
+- [x] **Token revocation** from Web UI/app: `GET /devices` (secret-free) + `POST /devices/:id/revoke`; revoked tokens die immediately (tested `resilience.api.test.ts`). **PIN rate-limit/lockout** on the Hub (tested `auth.test.ts`); agent-side parent-PIN unlock verifies against the Hub.
 
 ### 6.3 Watchdog & evidence
-- [ ] Heartbeat dead-man's switch: gap (while not cleanly powered off) → `AGENT_OFFLINE` push + next session LOCKED.
-- [ ] `CONSOLE_POWERED_DURING_LOCK` detection where feasible.
-- [ ] Confirm all tamper events (`CLOCK_TAMPER_SUSPECTED`, `PRIILOADER_ACCESS`, `LOG_INTEGRITY_FAIL`) push.
+- [x] Heartbeat dead-man's switch (`watchdog/watchdog.ts`): gap without a clean shutdown → `AGENT_OFFLINE` (push), debounced + re-armed on return; `POST /agent/shutdown` suppresses benign power-offs. Tested (`watchdog.test.ts`).
+- [x] `CONSOLE_POWERED_DURING_LOCK` emitted when a poll reports a running title while the effective state is LOCKED (tested).
+- [x] Tamper events push-flagged in the taxonomy (`PLAY_BEYOND_DOWNTIME`, `AGENT_OFFLINE`, `CONSOLE_POWERED_DURING_LOCK`, `CLOCK_TAMPER_SUSPECTED`, `PRIILOADER_ACCESS`, `SETTINGS_ACCESS`, `LOG_INTEGRITY_FAIL`); FCM dispatch in the Android `CgMessagingService`.
 
 ### 6.4 Resilience
-- [ ] Standby Hub on the second always-on machine: read-replica of signed log + policy; agents fail over for reads.
-- [ ] Nightly backups of SQLite + sealed `events.jsonl`.
+- [x] Standby read-replica: `GET /system/snapshot` (consistent, secret-free export) + `Store.importState` / `POST /system/replicate`; a second Hub imports and serves identical reads (tested `resilience.api.test.ts`). Agents fail over via the multi-endpoint discovery chain.
+- [x] Backups: `POST /system/backup` + scheduled `backupIntervalMs` copy `state.json` + sealed `events.jsonl` + `snapshot.json` to a timestamped folder, recording log-integrity; `GET /system/backups` lists them. Tested.
 
-> ## ✅ GATE 6 — Threat-model walkthrough on hardware *(blocks Phase 7)*
-> **Procedure:** Execute each row of [10](10-security-threat-model.md) §10.3 (T1–T15) against real consoles, recording the observed result and whether the mitigation held or the residual risk is as documented.
-> **Pass criteria:** for every threat, either the mitigation demonstrably holds, OR the residual matches the documented accepted risk (notably T9/T10 NAND-reflash = detectable-not-preventable). No *undocumented* bypass that grants time silently. Standby serves reads during a primary-down test.
-> Sign-off: ____
+> ## ✅ GATE 6 — Threat-model walkthrough *(blocks Phase 7)* — **PARTIAL: software mitigations verified; on-hardware walkthrough BLOCKED**
+> **Verified now (automated, Hub 99 tests + agent-core 142 C checks):** the software mitigations behind the threat table ([10](10-security-threat-model.md) §10.3) are tested — T1/T2 (clock rollback/forward → no time gain), T4 (kill agent → `AGENT_OFFLINE`), T11/T12 (MITM/replay → HMAC signing + nonce cache), T13 (stolen token → revocation), T14 (PIN brute force → lockout), T10 (log tamper → hash-chain), plus standby read-replica + backups.
+> **Still requires real consoles (BLOCKED):** the full T1–T15 walkthrough on hardware (boot-chain escape hatches, NAND-reflash residual T9, hold-RESET) needs a JTAG 360 + softmod Wii.
+> Sign-off (software mitigations): automated, 2026-06-01 · Sign-off (hardware walkthrough): ____
 
 ---
 

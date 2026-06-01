@@ -49,7 +49,9 @@ A **tech-savvy child with full physical access** to the console and the same mod
 
 ## 10.6 Transport on constrained consoles
 
-TLS may be impractical inside the 360 plugin / Wii `.dol`. The LAN-only fallback is **HMAC-SHA256-signed plaintext JSON** with `nonce`+`ts` replay protection and the device key established at pairing (§8.4). This authenticates and integrity-protects messages on the trusted home LAN without a full TLS stack; the Web/Android surfaces use real HTTPS. Decision recorded as an open item ([12](12-risks-open-questions.md) R-04).
+TLS may be impractical inside the 360 plugin / Wii `.dol`. The LAN-only fallback is **HMAC-SHA256-signed plaintext JSON** with `nonce`+`ts` replay protection and the device key established at pairing (§8.4). This authenticates and integrity-protects messages on the trusted home LAN without a full TLS stack; the Web/Android surfaces use real HTTPS.
+
+> **Implemented (Phase 6).** Canonical string `METHOD\nPATH\nSHA256HEX(body)\nNONCE\nTS`, signed `HMAC-SHA256(signingKey, canonical)`. Hub verifier: `hub/src/auth/signing.ts` (constant-time compare, nonce **replay cache**, ts-skew window, `enforceAgentSigning` switch); agents: `agent-core/cg_hmac.c` + `cg_sign.c` (self-contained SHA-256/HMAC, RFC-4231-tested), wired into both net layers. The C signer is **cross-language-pinned** to the Node verifier (byte-identical signatures). Signing keys are issued per-agent at pairing and are revocable (§token revocation). Closes [12](12-risks-open-questions.md) R-04.
 
 ## 10.7 Privacy
 

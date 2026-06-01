@@ -4,13 +4,40 @@
  */
 #include "net.h"
 #include "cg_http.h"
+#include "cg_sign.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
 
 #ifdef _XBOX
 #include <xtl.h>
 #include <winsockx.h>
 #endif
+
+/* HMAC signing key (hex) for LAN request integrity (R-04), set after pairing. */
+static char g_signing_key[65] = {0};
+static unsigned long g_nonce_counter = 0;
+
+void cg360_set_signing_key(const char *key_hex) {
+  if (key_hex) {
+    strncpy(g_signing_key, key_hex, sizeof(g_signing_key) - 1);
+    g_signing_key[sizeof(g_signing_key) - 1] = '\0';
+  } else {
+    g_signing_key[0] = '\0';
+  }
+}
+
+static void build_signing_headers(const char *method, const char *path, const char *body,
+                                  char *out, int outlen) {
+  out[0] = '\0';
+  if (g_signing_key[0] == '\0') return;
+  char nonce[32], ts[24];
+  long long now_ms = (long long)time(NULL) * 1000;
+  snprintf(nonce, sizeof(nonce), "%lx-%lx", (unsigned long)now_ms, ++g_nonce_counter);
+  snprintf(ts, sizeof(ts), "%lld", now_ms);
+  cg_sign_request_headers(g_signing_key, method, path, body, nonce, ts, out, outlen);
+}
 
 int cg360_net_init(void) {
 #ifdef _XBOX
@@ -87,8 +114,11 @@ int cg360_request(const char *host, int port, const char *method, const char *pa
 
   char hostport[32];
   _snprintf(hostport, sizeof(hostport), "%s:%d", host, port);
-  char req[1024];
-  int rlen = cg_http_build_request(req, sizeof(req), method, path, hostport, token, pin_session, json_body);
+  char sighdr[256];
+  build_signing_headers(method, path, json_body, sighdr, sizeof(sighdr));
+  char req[1280];
+  int rlen = cg_http_build_request(req, sizeof(req), method, path, hostport, token, pin_session,
+                                   sighdr[0] ? sighdr : NULL, json_body);
   if (rlen < 0) { closesocket(s); return -1; }
   send(s, req, rlen, 0);
 
@@ -115,6 +145,7 @@ int cg360_request(const char *host, int port, const char *method, const char *pa
 #else
   (void)host; (void)port; (void)method; (void)path; (void)token; (void)pin_session;
   (void)json_body; (void)resp; (void)resp_len;
+  (void)build_signing_headers; /* used only in the _XBOX build path */
   return -1;
 #endif
 }

@@ -10,6 +10,7 @@
 
 typedef struct {
   char device_token[64];
+  char signing_key[65];
   char hub_host[16];
   int hub_port;
   int64_t high_water_utc_ms;

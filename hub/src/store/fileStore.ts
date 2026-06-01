@@ -126,6 +126,31 @@ export class FileStore implements Store {
     return this.secret;
   }
 
+  exportState(): unknown {
+    // Deep copy; the secret/PIN are kept out of replication snapshots.
+    const { pin: _pin, ...rest } = this.doc;
+    return JSON.parse(JSON.stringify(rest));
+  }
+
+  async importState(doc: unknown): Promise<void> {
+    const incoming = doc as Partial<StateDoc>;
+    if (!incoming || incoming.version !== 1) throw new Error('incompatible snapshot');
+    // Preserve this instance's identity, PIN, and secret; replace replicated data.
+    this.doc = {
+      ...this.doc,
+      consoles: incoming.consoles ?? [],
+      schedules: incoming.schedules ?? this.doc.schedules,
+      flags: incoming.flags ?? [],
+      grants: incoming.grants ?? [],
+      quotaStates: incoming.quotaStates ?? [],
+      sessions: incoming.sessions ?? [],
+      devices: incoming.devices ?? this.doc.devices,
+      commands: incoming.commands ?? [],
+      requests: incoming.requests ?? [],
+    };
+    await this.persist();
+  }
+
   // Consoles ---------------------------------------------------------------
   getConsole(id: string): Console | undefined {
     return this.doc.consoles.find((c) => c.id === id);

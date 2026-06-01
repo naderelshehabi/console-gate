@@ -43,11 +43,13 @@ static void p360_show_lock(const char *reason);
 static void p360_force_close_to_dash(void);
 static void p360_sleep_ms(int ms);
 static int p360_load_token(char *token, int len, char *host, int hostlen, int *port, long long *high_water);
+static int p360_load_signing_key(char *out, int len);
 static void p360_save_high_water(long long high_water);
 
 /* ---- agent state -------------------------------------------------------- */
 typedef struct {
   char token[64];
+  char signing_key[65];
   char host[24];
   int port;
   long long high_water;
@@ -164,6 +166,10 @@ static void agent_loop(void) {
     if (port > 0) a.port = port;
   }
 
+  // Sign all subsequent requests if a signing key was provisioned at pairing (R-04).
+  p360_load_signing_key(a.signing_key, sizeof(a.signing_key));
+  cg360_set_signing_key(a.signing_key[0] ? a.signing_key : NULL);
+
   for (;;) {
     int next = (a.token[0] != 0) ? tick(&a) : POLL_MS_NORMAL;
     p360_sleep_ms(next);
@@ -254,6 +260,14 @@ static int p360_load_token(char *token, int len, char *host, int hostlen, int *p
   fclose(f);
   return token[0] != 0;
 }
+static int p360_load_signing_key(char *out, int len) {
+  out[0] = '\0';
+  FILE *f = fopen("Hdd:\\cg_agent\\signing.key", "r");
+  if (!f) return 0;
+  if (fgets(out, len, f)) out[strcspn(out, "\r\n")] = 0;
+  fclose(f);
+  return out[0] != 0;
+}
 static void p360_save_high_water(long long hw) {
   /* Production: rewrite only the high-water line; omitted for brevity. */
   (void)hw;
@@ -272,5 +286,6 @@ static void p360_sleep_ms(int ms) { (void)ms; }
 static int p360_load_token(char *t, int l, char *h, int hl, int *p, long long *hw) {
   (void)t; (void)l; (void)h; (void)hl; (void)p; (void)hw; return 0;
 }
+static int p360_load_signing_key(char *out, int len) { (void)len; out[0] = '\0'; return 0; }
 static void p360_save_high_water(long long hw) { (void)hw; }
 #endif

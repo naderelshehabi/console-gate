@@ -25,6 +25,8 @@ int cg_store_load(cg_store *s) {
     if (nl) *nl = '\0';
     if (strcmp(key, "token") == 0) {
       strncpy(s->device_token, val, sizeof(s->device_token) - 1);
+    } else if (strcmp(key, "signkey") == 0) {
+      strncpy(s->signing_key, val, sizeof(s->signing_key) - 1);
     } else if (strcmp(key, "host") == 0) {
       strncpy(s->hub_host, val, sizeof(s->hub_host) - 1);
     } else if (strcmp(key, "port") == 0) {
@@ -41,6 +43,7 @@ int cg_store_save(const cg_store *s) {
   FILE *f = fopen(CG_STORE_PATH, "w");
   if (!f) return -1;
   fprintf(f, "token=%s\n", s->device_token);
+  fprintf(f, "signkey=%s\n", s->signing_key);
   fprintf(f, "host=%s\n", s->hub_host);
   fprintf(f, "port=%d\n", s->hub_port);
   fprintf(f, "highwater=%lld\n", (long long)s->high_water_utc_ms);

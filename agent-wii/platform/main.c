@@ -88,6 +88,15 @@ static int ensure_paired(cg_store *s) {
   int i = 0;
   while (*p && *p != '"' && i < (int)sizeof(s->device_token) - 1) s->device_token[i++] = *p++;
   s->device_token[i] = 0;
+
+  /* And the HMAC signing key (R-04). */
+  const char *k = strstr(resp, "\"signingKey\":\"");
+  if (k) {
+    k += 14;
+    i = 0;
+    while (*k && *k != '"' && i < (int)sizeof(s->signing_key) - 1) s->signing_key[i++] = *k++;
+    s->signing_key[i] = 0;
+  }
   cg_store_save(s);
   return 1;
 }
@@ -232,6 +241,9 @@ int main(int argc, char **argv) {
     /* Fail closed: do not chain to a game. */
     return 0;
   }
+
+  /* Sign subsequent requests with the key issued at pairing (R-04). */
+  cgnet_set_signing_key(store.signing_key[0] ? store.signing_key : NULL);
 
   reconcile_pending_session(&store);
 

@@ -49,7 +49,7 @@ docker compose up -d      # see docker-compose.yml for the discovery caveat on W
 ## Test
 
 ```bash
-npm test                  # 80 unit + integration tests (node:test)
+npm test                  # 99 unit + integration tests (node:test)
 npm run typecheck         # tsc --noEmit
 ```
 
@@ -80,9 +80,12 @@ src/
   store/             # Store interface + atomic file-backed implementation
   policy/            # schedule math, effective-state evaluator, transitions, control
   quota/             # monotonic, clock-independent quota accounting
-  auth/              # scrypt PIN, device tokens, pairing, lockout, web login
+  auth/              # scrypt PIN, device tokens, pairing, lockout, web login,
+                     #   HMAC request signing + replay cache (R-04), revocation
   events/            # taxonomy + signed hash-chained append log + StreamBus
   analytics/         # on-read play/incident rollups
+  watchdog/          # heartbeat dead-man's switch -> AGENT_OFFLINE
+  backup/            # backups + standby snapshot/replication
   api/               # router, routes, http server, WebSocket stream, static serving
   discovery/         # UDP-broadcast discovery responder
 web/                 # Web UI (vanilla JS, served by the Hub)

@@ -5,7 +5,7 @@
 
 int cg_http_build_request(char *buf, int buflen, const char *method, const char *path,
                           const char *host, const char *token, const char *pin_session,
-                          const char *json_body) {
+                          const char *extra_headers, const char *json_body) {
   if (!buf || buflen <= 0 || !method || !path || !host) return -1;
   int blen = json_body ? (int)strlen(json_body) : 0;
   int n = snprintf(
@@ -15,6 +15,7 @@ int cg_http_build_request(char *buf, int buflen, const char *method, const char 
       "Connection: close\r\n"
       "%s%s%s"
       "%s%s%s"
+      "%s"
       "Content-Type: application/json\r\n"
       "Content-Length: %d\r\n"
       "\r\n"
@@ -22,6 +23,7 @@ int cg_http_build_request(char *buf, int buflen, const char *method, const char 
       method, path, host,
       token ? "Authorization: Bearer " : "", token ? token : "", token ? "\r\n" : "",
       pin_session ? "X-Pin-Session: " : "", pin_session ? pin_session : "", pin_session ? "\r\n" : "",
+      extra_headers ? extra_headers : "",
       blen, json_body ? json_body : "");
   if (n < 0 || n >= buflen) return -1;
   return n;

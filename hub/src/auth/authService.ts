@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import type { Store } from '../store/store';
 import type { Console, ConsoleKind, Device, DeviceKind } from '../types';
 import { hashPin, verifyPin } from './pin';
@@ -29,6 +29,7 @@ export interface ClaimOptions {
 export interface ClaimResult {
   device: Device;
   token: string; // plaintext, returned once
+  signingKey: string | null; // hex; returned once for agent devices
   console?: Console;
 }
 
@@ -147,6 +148,8 @@ export class AuthService {
     const token = randomToken(32);
     const tokenHash = sha256(token);
     const deviceId = uuid();
+    // Agents get an HMAC signing key for LAN request integrity (R-04).
+    const signingKey = options.deviceKind === 'agent' ? randomBytes(32).toString('hex') : null;
     let consoleObj: Console | undefined;
 
     if (options.deviceKind === 'agent') {
@@ -171,12 +174,13 @@ export class AuthService {
       name: options.deviceName,
       consoleId: consoleObj?.id ?? null,
       tokenHash,
+      signingKey,
       pushToken: options.pushToken ?? null,
       pairedAt: this.now(),
       lastSeen: null,
     };
     await this.store.upsertDevice(device);
-    return { device, token, console: consoleObj };
+    return { device, token, signingKey, console: consoleObj };
   }
 
   /**
@@ -199,6 +203,7 @@ export class AuthService {
       name,
       consoleId: null,
       tokenHash,
+      signingKey: null,
       pushToken: null,
       pairedAt: this.now(),
       lastSeen: null,
@@ -210,11 +215,21 @@ export class AuthService {
   // Token auth -------------------------------------------------------------
   authenticate(token: string | undefined): Device | undefined {
     if (!token) return undefined;
-    return this.store.getDeviceByTokenHash(sha256(token));
+    const device = this.store.getDeviceByTokenHash(sha256(token));
+    if (device?.revoked) return undefined; // revoked devices can no longer authenticate
+    return device;
   }
 
   async revoke(deviceId: string): Promise<void> {
-    await this.store.deleteDevice(deviceId);
+    const device = this.store.getDevice(deviceId);
+    if (!device) return;
+    // Mark revoked (kept for the audit trail) and rotate the token hash so the old
+    // token is dead even if the record is later un-revoked.
+    await this.store.upsertDevice({ ...device, revoked: true, tokenHash: 'revoked:' + device.id });
+  }
+
+  listDevices(): Device[] {
+    return this.store.listDevices();
   }
 }
 

@@ -14,6 +14,8 @@ host** even though the consoles themselves can't be built/run here.
 | `cg_proto.[ch]` | Build the `/agent/poll` request body; parse its response into a struct ([protocol §8.6](../docs/implement/08-protocol-api.md)) |
 | `cg_agent.[ch]` | Decision logic: time-trust (high-water/rollback/default-clock), fail-closed grace window, Wii won't-finish launch guard, session accounting, command handling ([time & tamper](../docs/implement/09-time-and-tamper.md)) |
 | `cg_enforce.[ch]` | In-game (360) enforcement: graduated-warning fire-once scheduler, soft/hard action selector (warn/grace/force-close/nag/lock), monotonic minute accounting ([360 agent](../docs/implement/04-console-xbox360.md)) |
+| `cg_hmac.[ch]` | SHA-256 + HMAC-SHA256 (no crypto library), for request signing |
+| `cg_sign.[ch]` | Build the canonical string + signature + `X-CG-*` signing headers the Hub verifies (R-04 / [time & tamper](../docs/implement/09-time-and-tamper.md)) |
 
 No I/O, no platform calls — pure functions the platform layer drives.
 
@@ -24,8 +26,10 @@ cd agent-core
 make test        # builds with the host C compiler and runs the suite
 ```
 
-Current: **122 checks, 0 failed** (`test_json.c`, `test_http.c`, `test_proto.c`,
-`test_agent.c`, `test_enforce.c`). Compiles clean under `-Wall -Wextra`.
+Current: **142 checks, 0 failed** (`test_json.c`, `test_http.c`, `test_proto.c`,
+`test_agent.c`, `test_enforce.c`, `test_hmac.c`). Compiles clean under `-Wall -Wextra`.
+`test_hmac.c` includes published SHA-256/HMAC vectors and a **cross-language pin** —
+`cg_sign` must produce the exact signature the Hub's `hub/src/auth/signing.ts` does.
 
 ## Cross-language contract check
 

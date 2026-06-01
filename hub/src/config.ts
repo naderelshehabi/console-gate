@@ -19,6 +19,16 @@ export interface HubConfig {
   clockSkewToleranceMs: number;
   /** Plausibility floor: a console clock below this is treated as a default/reset clock. */
   plausibleFloorUtc: number;
+  /** Require HMAC-signed requests on agent endpoints (reject unsigned). */
+  enforceAgentSigning: boolean;
+  /** Allowed clock skew (ms) on a signed request's timestamp. */
+  signingSkewMs: number;
+  /** Agent heartbeat-gap (ms) after which the watchdog raises AGENT_OFFLINE. */
+  agentOfflineMs: number;
+  /** How often the watchdog scans for offline agents (ms). */
+  watchdogIntervalMs: number;
+  /** How often automatic backups run (ms); 0 disables. */
+  backupIntervalMs: number;
 }
 
 export const DEFAULT_CONFIG: HubConfig = {
@@ -33,6 +43,11 @@ export const DEFAULT_CONFIG: HubConfig = {
   clockSkewToleranceMs: 2 * 60 * 1000,
   // 2023-01-01T00:00:00Z — any console clock older than this is implausible (default/reset).
   plausibleFloorUtc: 1672531200000,
+  enforceAgentSigning: false,
+  signingSkewMs: 5 * 60 * 1000,
+  agentOfflineMs: 3 * 60 * 1000,
+  watchdogIntervalMs: 30 * 1000,
+  backupIntervalMs: 24 * 60 * 60 * 1000,
 };
 
 /** Extremely small YAML subset parser: `key: value` and `key:` + `- item` lists. */
@@ -97,6 +112,7 @@ export function loadConfig(opts?: { file?: string; overrides?: Partial<HubConfig
   if (env.CG_NTP_POOL) cfg.ntpPool = env.CG_NTP_POOL.split(',').map((s) => s.trim()).filter(Boolean);
   if (env.CG_DATA_DIR) cfg.dataDir = env.CG_DATA_DIR;
   if (env.CG_LOG_LEVEL) cfg.logLevel = env.CG_LOG_LEVEL as HubConfig['logLevel'];
+  if (env.CG_ENFORCE_SIGNING) cfg.enforceAgentSigning = env.CG_ENFORCE_SIGNING === 'true';
 
   if (opts?.overrides) Object.assign(cfg, opts.overrides);
 
@@ -114,5 +130,8 @@ function sanitizePartial(parsed: Record<string, unknown>): Partial<HubConfig> {
   if (Array.isArray(parsed.ntpPool)) p.ntpPool = parsed.ntpPool.map(String);
   if (typeof parsed.dataDir === 'string') p.dataDir = parsed.dataDir;
   if (typeof parsed.logLevel === 'string') p.logLevel = parsed.logLevel as HubConfig['logLevel'];
+  if (typeof parsed.enforceAgentSigning === 'boolean') p.enforceAgentSigning = parsed.enforceAgentSigning;
+  if (typeof parsed.agentOfflineMs === 'number') p.agentOfflineMs = parsed.agentOfflineMs;
+  if (typeof parsed.backupIntervalMs === 'number') p.backupIntervalMs = parsed.backupIntervalMs;
   return p;
 }

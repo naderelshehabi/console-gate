@@ -15,3 +15,8 @@ ntpPool:               # authoritative time sources (best-effort; falls back to 
 # Storage & logging
 dataDir: ./data        # state.json, events.jsonl, hub.secret live here (mount a volume)
 logLevel: info         # debug | info | warn | error
+
+# Security & resilience (Phase 6)
+enforceAgentSigning: false   # require HMAC-signed requests on agent endpoints (R-04)
+agentOfflineMs: 180000       # heartbeat gap (ms) before the watchdog raises AGENT_OFFLINE
+backupIntervalMs: 86400000   # automatic backup cadence (ms); 0 disables

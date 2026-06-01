@@ -39,6 +39,7 @@ async function handle(
     params: {},
     query: url.searchParams,
     body: undefined,
+    rawBody: '',
     header: (name) => {
       const v = req.headers[name.toLowerCase()];
       return Array.isArray(v) ? v[0] : v;
@@ -61,7 +62,9 @@ async function handle(
     }
     ctx.params = matched.params;
     if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
-      ctx.body = await readBody(req);
+      const parsed = await readBody(req);
+      ctx.body = parsed.value;
+      ctx.rawBody = parsed.raw;
     }
     await matched.handler(ctx);
   } catch (err) {

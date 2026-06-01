@@ -5,9 +5,11 @@
  */
 #include "net.h"
 #include "cg_http.h"
+#include "cg_sign.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 #ifdef __wii__
 #include <network.h>
@@ -16,6 +18,31 @@
 /* Host stubs so editors/linters don't choke; the real build defines __wii__. */
 #include <stdint.h>
 #endif
+
+/* HMAC signing key (hex) for LAN request integrity (R-04), set after pairing. */
+static char g_signing_key[65] = {0};
+static unsigned long g_nonce_counter = 0;
+
+void cgnet_set_signing_key(const char *key_hex) {
+  if (key_hex) {
+    strncpy(g_signing_key, key_hex, sizeof(g_signing_key) - 1);
+    g_signing_key[sizeof(g_signing_key) - 1] = '\0';
+  } else {
+    g_signing_key[0] = '\0';
+  }
+}
+
+/* Build the X-CG-* signing headers for a request; out[0]=0 if no key is set. */
+static void build_signing_headers(const char *method, const char *path, const char *body,
+                                  char *out, int outlen) {
+  out[0] = '\0';
+  if (g_signing_key[0] == '\0') return;
+  char nonce[32], ts[24];
+  long long now_ms = (long long)time(NULL) * 1000;
+  snprintf(nonce, sizeof(nonce), "%lx-%lx", (unsigned long)now_ms, ++g_nonce_counter);
+  snprintf(ts, sizeof(ts), "%lld", now_ms);
+  cg_sign_request_headers(g_signing_key, method, path, body, nonce, ts, out, outlen);
+}
 
 int cgnet_init(void) {
 #ifdef __wii__
@@ -92,8 +119,11 @@ int cgnet_request(const char *host, int port, const char *method, const char *pa
   /* Build the request with the host-tested helper (agent-core/cg_http). */
   char hostport[24];
   snprintf(hostport, sizeof(hostport), "%s:%d", host, port);
-  char req[1024];
-  int rlen = cg_http_build_request(req, sizeof(req), method, path, hostport, token, pin_session, json_body);
+  char sighdr[256];
+  build_signing_headers(method, path, json_body, sighdr, sizeof(sighdr));
+  char req[1280];
+  int rlen = cg_http_build_request(req, sizeof(req), method, path, hostport, token, pin_session,
+                                   sighdr[0] ? sighdr : NULL, json_body);
   if (rlen < 0) { net_close(sock); return -1; }
   net_send(sock, req, rlen, 0);
 

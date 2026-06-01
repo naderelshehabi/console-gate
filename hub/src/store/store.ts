@@ -24,6 +24,10 @@ export interface Store {
   setPinRecord(rec: PinRecord): Promise<void>;
   getSecret(): Buffer; // HMAC key for the signed event log
 
+  // Replication / backup
+  exportState(): unknown;             // a deep, serializable snapshot of all state
+  importState(doc: unknown): Promise<void>; // replace state (standby read-replica)
+
   // Consoles
   getConsole(id: string): Console | undefined;
   listConsoles(): Console[];
