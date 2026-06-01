@@ -1,0 +1,17 @@
+# ConsoleGate Hub configuration (copy to consolegate.yml).
+# Environment variables (CG_*) override these values.
+
+# Network
+host: 0.0.0.0          # bind address for the HTTP API + Web UI
+port: 8088             # HTTP API / Web UI port
+discoveryPort: 8099    # UDP broadcast discovery responder port
+
+# Time & policy
+tz: UTC                # home timezone, e.g. America/New_York — drives schedules and the day boundary
+ntpPool:               # authoritative time sources (best-effort; falls back to host clock)
+  - pool.ntp.org
+  - time.cloudflare.com
+
+# Storage & logging
+dataDir: ./data        # state.json, events.jsonl, hub.secret live here (mount a volume)
+logLevel: info         # debug | info | warn | error

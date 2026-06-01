@@ -1,0 +1,28 @@
+{
+  "name": "consolegate-hub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ConsoleGate Hub — authoritative time/policy/state/event authority for the parental-control system",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "test:only": "node --import tsx --test",
+    "mock-agent": "tsx mock-agent/mockAgent.ts"
+  },
+  "dependencies": {
+    "ws": "^8.21.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

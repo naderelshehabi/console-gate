@@ -1,0 +1,24 @@
+# ConsoleGate Hub — one-command deploy.
+#   docker compose up -d
+#
+# Discovery note (docs/implement/12-risks-open-questions.md R-03/R-07): on Docker
+# Desktop for Windows/Mac the default bridge network does NOT forward host
+# mDNS/UDP-broadcast into the container, so LAN auto-discovery may not reach the
+# Hub. On Linux you can use `network_mode: host` (uncomment below). On Win/Mac,
+# either run the Hub natively (`npm start`) for discovery, or have clients use the
+# manual-IP fallback. The HTTP API on the published port always works.
+
+services:
+  consolegate-hub:
+    build: .
+    container_name: consolegate-hub
+    restart: unless-stopped
+    # network_mode: host        # Linux only — enables UDP-broadcast discovery
+    ports:
+      - "8088:8088/tcp"         # HTTP API + Web UI
+      - "8099:8099/udp"         # UDP discovery responder
+    environment:
+      CG_TZ: "UTC"              # set to your home timezone, e.g. America/New_York
+      CG_LOG_LEVEL: "info"
+    volumes:
+      - ./data:/data

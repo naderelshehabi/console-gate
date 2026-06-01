@@ -1,0 +1,19 @@
+; ConsoleGate — Dashlaunch launch.ini example (JTAG/RGH Xbox 360).
+; Boots the ConsoleGate dashboard first and loads the resident enforcement plugin.
+; Copy the relevant lines into your existing launch.ini (back it up first).
+
+[default]
+; Boot straight into the ConsoleGate dashboard (the agent home). The child can
+; only reach a game/loader from here when the Hub says ALLOWED.
+default = Hdd:\cg_dash\default.xex
+
+[Plugins]
+; The resident enforcement plugin — stays loaded across game launches and runs
+; the poll/warn/force-close loop.
+plugin1 = Hdd:\cg_agent\cg_agent.xex
+
+; --- Hardening (see docs/implement/10-security-threat-model.md §10.4) ---
+; Remove button-launch escape slots (But_A/But_X/...) so there is no hold-a-button
+; bypass, and neutralise RBump so it can't drop to the stock MS dashboard.
+; For maximum tamper resistance, bake cg_agent + this launch.ini into the NAND
+; image with xeBuild/J-Runner so an HDD wipe does not remove enforcement.

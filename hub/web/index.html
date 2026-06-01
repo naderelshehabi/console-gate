@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ConsoleGate</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>ConsoleGate</h1>
+      <div id="conn" class="conn" title="live connection">offline</div>
+      <button id="logout" class="ghost" hidden>Lock</button>
+    </header>
+
+    <!-- Auth gate -->
+    <section id="auth" class="card auth">
+      <div id="auth-setup" hidden>
+        <h2>Create a parent PIN</h2>
+        <p class="muted">This PIN protects every control. Choose 4–12 digits a child won't guess.</p>
+        <input id="setup-pin" type="password" inputmode="numeric" placeholder="New PIN" autocomplete="new-password" />
+        <input id="setup-pin2" type="password" inputmode="numeric" placeholder="Confirm PIN" autocomplete="new-password" />
+        <button id="setup-go">Set PIN</button>
+        <div id="setup-err" class="err"></div>
+      </div>
+      <div id="auth-login" hidden>
+        <h2>Parent login</h2>
+        <input id="login-pin" type="password" inputmode="numeric" placeholder="Parent PIN" autocomplete="current-password" />
+        <button id="login-go">Unlock</button>
+        <div id="login-err" class="err"></div>
+      </div>
+    </section>
+
+    <!-- App -->
+    <main id="app" hidden>
+      <nav class="tabs">
+        <button data-tab="dashboard" class="active">Dashboard</button>
+        <button data-tab="schedule">Schedule</button>
+        <button data-tab="events">Events</button>
+        <button data-tab="system">System</button>
+      </nav>
+
+      <section id="tab-dashboard" class="tab">
+        <div id="requests" class="requests"></div>
+        <div id="cards" class="cards"></div>
+        <p id="no-consoles" class="muted" hidden>No consoles paired yet. Pair an agent with a code from the System tab.</p>
+      </section>
+
+      <section id="tab-schedule" class="tab" hidden>
+        <label class="row">Console
+          <select id="sched-console"></select>
+        </label>
+        <div id="sched-editor"></div>
+      </section>
+
+      <section id="tab-events" class="tab" hidden>
+        <div class="row">
+          <button id="verify-log">Verify log integrity</button>
+          <span id="verify-out" class="muted"></span>
+        </div>
+        <ul id="event-list" class="events"></ul>
+      </section>
+
+      <section id="tab-system" class="tab" hidden>
+        <div class="card">
+          <h3>Time</h3>
+          <div id="time-status" class="muted"></div>
+          <button id="time-refresh">Refresh time now</button>
+        </div>
+        <div class="card">
+          <h3>Pair a console / device</h3>
+          <button id="pair-start">Generate pairing code</button>
+          <div id="pair-out" class="pair"></div>
+          <p class="muted">Enter this code on the console agent or the Android app within 5 minutes.</p>
+        </div>
+        <div class="card">
+          <h3>Analytics</h3>
+          <div id="analytics"></div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" hidden></div>
+    <script src="/app.js"></script>
+  </body>
+</html>
