@@ -120,3 +120,6 @@ button:disabled { opacity: 0.5; cursor: default; }
 }
 .bar { height: 7px; background: var(--panel2); border-radius: 4px; overflow: hidden; margin-top: 4px; }
 .bar > i { display: block; height: 100%; background: var(--accent); }
+.hours { display: flex; align-items: flex-end; gap: 2px; height: 44px; margin: 6px 0 14px; }
+.hourcol { flex: 1; display: flex; align-items: flex-end; }
+.hourcol > i { display: block; width: 100%; min-height: 1px; background: var(--accent); border-radius: 2px 2px 0 0; }

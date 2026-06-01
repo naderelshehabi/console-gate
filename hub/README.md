@@ -49,7 +49,7 @@ docker compose up -d      # see docker-compose.yml for the discovery caveat on W
 ## Test
 
 ```bash
-npm test                  # 99 unit + integration tests (node:test)
+npm test                  # 103 unit + integration tests (node:test)
 npm run typecheck         # tsc --noEmit
 ```
 

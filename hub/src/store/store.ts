@@ -54,6 +54,7 @@ export interface Store {
   // Sessions
   getSession(id: string): Session | undefined;
   listOpenSessions(consoleId: string): Session[];
+  listSessions(consoleId: string): Session[];
   addSession(s: Session): Promise<void>;
   updateSession(s: Session): Promise<void>;
 

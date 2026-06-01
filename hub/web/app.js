@@ -352,8 +352,25 @@ function renderAnalytics(a) {
     var d = document.createElement('div'); d.className = 'kvs';
     d.appendChild(kv(c.name, c.totalMinutesPlayed + ' min total'));
     d.appendChild(kv('Overage incidents', String(c.overageIncidents)));
+    d.appendChild(kv('Agent-offline gaps', String(c.agentOfflineIncidents || 0)));
     d.appendChild(kv('Bonuses granted', String(c.bonusesGranted)));
     box.appendChild(d);
+
+    // Busiest hours mini-bar chart.
+    var hours = c.busiestHours || [];
+    var max = Math.max(1, Math.max.apply(null, hours.length ? hours : [0]));
+    var title = document.createElement('div'); title.className = 'muted'; title.textContent = 'Busiest hours';
+    box.appendChild(title);
+    var chart = document.createElement('div'); chart.className = 'hours';
+    for (var hidx = 0; hidx < 24; hidx++) {
+      var col = document.createElement('div'); col.className = 'hourcol';
+      var bar = document.createElement('i');
+      bar.style.height = Math.round(((hours[hidx] || 0) / max) * 40) + 'px';
+      bar.title = hidx + ':00 — ' + (hours[hidx] || 0) + ' min';
+      col.appendChild(bar);
+      chart.appendChild(col);
+    }
+    box.appendChild(chart);
   });
 }
 

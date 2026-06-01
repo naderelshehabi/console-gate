@@ -25,13 +25,22 @@ test('computeSummary aggregates play minutes and incident counts', async () => {
     log.emit({ type: 'PLAY_BEYOND_DOWNTIME', consoleId: 'c1', ts: 1000 });
     log.emit({ type: 'PLAY_BEYOND_DOWNTIME', consoleId: 'c1', ts: 2000 });
     log.emit({ type: 'BONUS_GRANTED', consoleId: 'c1', ts: 3000 });
+    // A 30-minute session starting at 14:00 UTC -> busiestHours[14].
+    const start = Date.UTC(2024, 0, 3, 14, 0, 0);
+    await store.addSession({
+      id: 's1', consoleId: 'c1', startedUtc: start, endedUtc: start + 30 * 60_000,
+      titleId: null, expectedReturnBy: null, source: 'wii-gate',
+    });
 
-    const sum = computeSummary(store, log, { sinceTs: 0, now: 5000 });
+    const sum = computeSummary(store, log, { sinceTs: 0, now: Date.UTC(2024, 0, 5, 0, 0, 0) });
     const c = sum.consoles[0]!;
     assert.equal(c.totalMinutesPlayed, 100);
     assert.equal(c.byDay.length, 2);
     assert.equal(c.overageIncidents, 2);
     assert.equal(c.bonusesGranted, 1);
+    assert.equal(c.busiestHours.length, 24);
+    assert.equal(c.busiestHours[14], 30); // 30 min played in the 14:00 hour
+    assert.equal(c.busiestHours[10], 0);
     assert.equal(sum.totals.minutesPlayed, 100);
     assert.equal(sum.totals.overageIncidents, 2);
   } finally {

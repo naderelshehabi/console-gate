@@ -1,6 +1,8 @@
 # 13 — Parent Setup & Hardening Guide
 
-Plain-language instructions for parents. This is a planning draft of the guide that ships with the product; exact button paths are finalized during M7. **Read §13.1 first — it sets honest expectations.**
+Plain-language instructions for parents. **Read §13.1 first — it sets honest expectations.**
+
+> **Quick reference (as implemented).** Hub runs in Docker and serves the web UI at **`http://<hub-host>:8088/`** (UDP **8099** is used for auto-discovery). First run: open that URL → **set a parent PIN** → log in. Pair a console or the phone by generating a 6-digit code under **System › Generate pairing code** and entering it on the device (the code expires in 5 minutes). The Hub watches each console's heartbeat and alerts you (**"agent stopped reporting"** = `AGENT_OFFLINE`) if a powered console goes silent, plus alerts for *played-past-downtime*, *clock-tampering*, and *more-time requests*. The Hub keeps signed logs and takes automatic backups. On-console button paths for the 360/Wii install steps are confirmed during the on-hardware acceptance run (GATE 3/4).
 
 ## 13.1 What this can and can't do (read this)
 
@@ -18,12 +20,12 @@ Plain-language instructions for parents. This is a planning draft of the guide t
 ## 13.3 Step 1 — Install the Hub (the brain)
 
 1. Install Docker Desktop on your always-on Windows or Mac machine.
-2. Run the ConsoleGate Hub container (one command / compose file provided).
-3. Open `https://<that-computer>:<port>/` in a browser. Complete the first-run wizard:
-   - Set your **parent PIN** (don't use 0000/1234; the child may watch you type — choose something they won't guess).
-   - Set your **timezone** and turn on internet time sync.
-   - Choose how you want phone notifications (cloud push for alerts anywhere, or LAN-only for privacy).
-4. Leave this computer on. The Hub keeps the real clock, the schedule, and the history even when the consoles are off.
+2. From the `hub/` folder run **`docker compose up -d`** (one command). Set your timezone in `docker-compose.yml` (`CG_TZ`) or `consolegate.yml` first.
+3. Open `http://<that-computer>:8088/` in a browser. First run:
+   - **Create a parent PIN** (don't use 0000/1234; the child may watch you type — choose something they won't guess), then log in with it.
+   - Internet time sync is automatic; the **System** tab shows time status and a **Refresh time now** button.
+   - Choose how you want phone notifications (cloud push via FCM for alerts anywhere, or self-hosted/LAN-only for privacy).
+4. Leave this computer on. The Hub keeps the real clock, the schedule, and the history even when the consoles are off, and takes automatic backups (and can run a warm **standby** on a second always-on machine).
 
 ## 13.4 Step 2 — Set the schedule
 

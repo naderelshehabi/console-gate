@@ -295,25 +295,23 @@ Goal: walk the threat model on hardware; make bypass visible; remove escape hatc
 
 Goal: a non-expert parent can install and run it for a real week.
 
+> **Software/packaging done + verified here.** Analytics finalized, flows tested end-to-end, one-command Docker deploy **built and run** locally, unified test runner added, top-level README + parent guide finalized. The on-device polish (full Compose screens, signed console releases) and the **GATE 7 one-week soak** need real hardware/devices.
+
 ### 7.1 End-to-end flows
-- [ ] Bonus/extend/request flows polished across console, web, Android.
-- [ ] Analytics dashboards finalized (daily/weekly play, busiest hours, overage incidents, agent-offline gaps).
-- [ ] First-run wizard + inline help finalized.
+- [x] Bonus/extend/request flows tested end-to-end (`flows.api.test.ts`: extend-today → `EXTENDED_TODAY` + quota; request → approve grants + resolves; deny leaves quota). Web UI + Android use the same endpoints.
+- [x] Analytics finalized: daily/weekly play (`byDay`), **busiest-hours** (24-bucket from sessions), overage incidents, **agent-offline gaps** (`analytics.ts`; tested `analytics.test.ts`, `flows.api.test.ts`). Web UI renders an hourly mini-bar chart + incident counts.
+- [x] First-run flow: `GET /setup` → create-PIN → `web/login`; System tab has time status/refresh, pairing-code generator, **Verify log**, analytics. (Richer inline help is a device-build nicety.)
 
 ### 7.2 Packaging & docs
-- [ ] One-command Docker deploy for Windows & Mac (compose + readme).
-- [ ] Signed releases of `cg_agent`/`cg_dash` (360) and `cg_gate` WAD/`.dol` (Wii) with install scripts.
-- [ ] Finalize [13-parent-setup-guide.md](13-parent-setup-guide.md) with exact button paths verified on hardware.
+- [x] **One-command Docker deploy** (`docker compose up -d`) — image **built and smoke-run** here (boots, NTP-syncs, serves `/api/v1/setup` + Web UI). Works on Win/Mac/Linux Docker.
+- [x] Top-level [README](../../README.md) + **unified test runner** (`run-all-tests.ps1`/`.sh`) running Hub + agent-core + android-shared suites (host-only; no console/Android toolchains needed).
+- [~] Signed releases of `cg_agent`/`cg_dash` (360) + `cg_gate` WAD/`.dol` (Wii): the build configs (devkitPPC Makefile, XDK notes) + install docs are in place; producing/signing the binaries needs the console toolchains.
+- [x] Finalized [13-parent-setup-guide.md](13-parent-setup-guide.md) to match the implementation (port 8088, pairing-code flow, watchdog/backup alerts, `docker compose up`). Exact on-console button paths confirmed at GATE 3/4 on hardware.
 
-> ## ✅ GATE 7 — Parent acceptance (one-week soak) *(release gate)*
-> **Procedure:** A non-developer follows [13](13-parent-setup-guide.md) unaided to install the Hub, both consoles, and the Android app, then runs the system for **7 days** with a real child user.
-> **Pass criteria:**
-> - Install completed without developer help.
-> - Schedule enforced daily; warnings seen; ≥1 bonus grant and ≥1 lock-now used successfully.
-> - All brief requirements verified against the traceability table ([11](11-roadmap-milestones.md)).
-> - Every overage/tamper event during the week produced a push and a log entry (cross-checked).
-> - No data loss across a Hub restart and a console power-cycle.
-> Sign-off: ____
+> ## ✅ GATE 7 — Parent acceptance (one-week soak) *(release gate)* — **BLOCKED: needs real hardware + a 7-day field run**
+> **Verified now (automated/local):** the brief's requirement traceability ([11](11-roadmap-milestones.md)) is covered by the Hub + agent-core + android-shared suites; bonus/lock-now/extend/request flows pass; Docker deploy boots and serves; a Hub restart preserves state (file-backed store + backups). 
+> **Still requires the field run (BLOCKED):** a non-developer installing on a real 360 + Wii + phone and running 7 days with a child — needs the physical consoles, the Android device build, and elapsed time.
+> Sign-off (software/packaging): automated + local Docker run, 2026-06-01 · Sign-off (field soak): ____
 
 ---
 

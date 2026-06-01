@@ -222,6 +222,9 @@ export class FileStore implements Store {
   listOpenSessions(consoleId: string): Session[] {
     return this.doc.sessions.filter((s) => s.consoleId === consoleId && s.endedUtc === null);
   }
+  listSessions(consoleId: string): Session[] {
+    return this.doc.sessions.filter((s) => s.consoleId === consoleId);
+  }
   addSession(s: Session): Promise<void> {
     this.doc.sessions.push(s);
     return this.persist();
